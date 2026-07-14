@@ -1,4 +1,5 @@
 import streamlit as st
+import pdfplumber
 
 # -----------------------------
 # Page Configuration
@@ -58,8 +59,17 @@ if st.button("🚀 Analyze Resume"):
         st.warning("Please paste a job description.")
 
     else:
-        st.success("Everything looks good!")
+        st.success("Resume uploaded successfully!")
+        resume_text = ""
+        with pdfplumber.open(resume) as pdf:
+            for page in pdf.pages:
+                text = page.extract_text()
+                if text:
+                    resume_text += text + "\n"
 
-        st.info(
-            "In the next milestone, we'll extract the text from the PDF and send it to Gemini AI."
-        )
+        st.subheader("Extracted Resume Text")
+        st.text_area(
+            "Resume Content",
+            resume_text,
+            height=400
+)
