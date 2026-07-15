@@ -1,5 +1,15 @@
+import traceback
+
 import streamlit as st
 import pdfplumber
+import os
+from dotenv import load_dotenv
+from google import genai
+load_dotenv()
+
+client = genai.Client(
+    api_key=os.getenv("GEMINI_API_KEY")
+)
 
 # -----------------------------
 # Page Configuration
@@ -60,16 +70,22 @@ if st.button("🚀 Analyze Resume"):
 
     else:
         st.success("Resume uploaded successfully!")
+
         resume_text = ""
+
         with pdfplumber.open(resume) as pdf:
             for page in pdf.pages:
                 text = page.extract_text()
                 if text:
-                    resume_text += text + "\n"
-
-        st.subheader("Extracted Resume Text")
-        st.text_area(
-            "Resume Content",
-            resume_text,
-            height=400
-)
+                   resume_text += text + "\n"
+        try:
+            response = client.models.generate_content(
+                model="gemini-3.1-flash-lite",
+                contents="Say hello in one sentence."
+        )
+            st.subheader("Gemini Response")
+            st.write(response.text)
+        
+        except Exception as e:
+            st.error(str(e))
+            st.code(traceback.format_exc())    
