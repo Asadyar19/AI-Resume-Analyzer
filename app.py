@@ -1,18 +1,9 @@
 import traceback
 import streamlit as st
-import pdfplumber
-import os
-from dotenv import load_dotenv
-from google import genai
 
-# -----------------------------
-# Load Environment Variables
-# -----------------------------
-load_dotenv()
-
-client = genai.Client(
-    api_key=os.getenv("GEMINI_API_KEY")
-)
+from utils.gemini_client import client
+from utils.pdf_reader import extract_resume_text
+from utils.prompts import ats_prompt
 
 # -----------------------------
 # Page Configuration
@@ -78,19 +69,10 @@ if st.button("🚀 Analyze Resume"):
     # -----------------------------
     # Extract Resume Text
     # -----------------------------
-    resume_text = ""
-
-    with pdfplumber.open(resume) as pdf:
-        for page in pdf.pages:
-            text = page.extract_text()
-
-            if text:
-                resume_text += text + "\n"
-
-    resume_text = resume_text.strip()
+    resume_text = extract_resume_text(resume)
 
     # -----------------------------
-    # Debug (Can remove later)
+    # Debug (Remove later if desired)
     # -----------------------------
     with st.expander("📄 Extracted Resume Text"):
         st.text_area(
@@ -100,43 +82,12 @@ if st.button("🚀 Analyze Resume"):
         )
 
     # -----------------------------
-    # Gemini Prompt
+    # Generate Prompt
     # -----------------------------
-    prompt = f"""
-You are a senior Technical Recruiter and ATS (Applicant Tracking System) expert.
-
-Analyze the resume against the provided job description.
-
-Base your evaluation ONLY on the information provided.
-
-Do NOT invent skills, experience, certifications, or projects.
-
-Return your response in Markdown using exactly this structure:
-
-# ATS Score
-XX/100
-
-# Matched Skills
-- Skill 1
-- Skill 2
-- Skill 3
-
-# Missing Skills
-- Skill 1
-- Skill 2
-- Skill 3
-
-# Resume Improvement Suggestions
-1. Suggestion
-2. Suggestion
-3. Suggestion
-
-Resume:
-{resume_text}
-
-Job Description:
-{job_description}
-"""
+    prompt = ats_prompt(
+        resume_text,
+        job_description
+    )
 
     # -----------------------------
     # Gemini Analysis
