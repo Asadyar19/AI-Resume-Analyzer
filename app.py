@@ -1,10 +1,13 @@
 import traceback
-
 import streamlit as st
 import pdfplumber
 import os
 from dotenv import load_dotenv
 from google import genai
+
+# -----------------------------
+# Load Environment Variables
+# -----------------------------
 load_dotenv()
 
 client = genai.Client(
@@ -64,28 +67,92 @@ if st.button("🚀 Analyze Resume"):
 
     if resume is None:
         st.warning("Please upload a resume.")
+        st.stop()
 
-    elif job_description.strip() == "":
+    if not job_description.strip():
         st.warning("Please paste a job description.")
+        st.stop()
 
-    else:
-        st.success("Resume uploaded successfully!")
+    st.success("Resume uploaded successfully!")
 
-        resume_text = ""
+    # -----------------------------
+    # Extract Resume Text
+    # -----------------------------
+    resume_text = ""
 
-        with pdfplumber.open(resume) as pdf:
-            for page in pdf.pages:
-                text = page.extract_text()
-                if text:
-                   resume_text += text + "\n"
-        try:
+    with pdfplumber.open(resume) as pdf:
+        for page in pdf.pages:
+            text = page.extract_text()
+
+            if text:
+                resume_text += text + "\n"
+
+    resume_text = resume_text.strip()
+
+    # -----------------------------
+    # Debug (Can remove later)
+    # -----------------------------
+    with st.expander("📄 Extracted Resume Text"):
+        st.text_area(
+            "Resume Content",
+            resume_text,
+            height=300
+        )
+
+    # -----------------------------
+    # Gemini Prompt
+    # -----------------------------
+    prompt = f"""
+You are a senior Technical Recruiter and ATS (Applicant Tracking System) expert.
+
+Analyze the resume against the provided job description.
+
+Base your evaluation ONLY on the information provided.
+
+Do NOT invent skills, experience, certifications, or projects.
+
+Return your response in Markdown using exactly this structure:
+
+# ATS Score
+XX/100
+
+# Matched Skills
+- Skill 1
+- Skill 2
+- Skill 3
+
+# Missing Skills
+- Skill 1
+- Skill 2
+- Skill 3
+
+# Resume Improvement Suggestions
+1. Suggestion
+2. Suggestion
+3. Suggestion
+
+Resume:
+{resume_text}
+
+Job Description:
+{job_description}
+"""
+
+    # -----------------------------
+    # Gemini Analysis
+    # -----------------------------
+    try:
+
+        with st.spinner("🤖 AI is analyzing your resume..."):
+
             response = client.models.generate_content(
                 model="gemini-3.1-flash-lite",
-                contents="Say hello in one sentence."
-        )
-            st.subheader("Gemini Response")
-            st.write(response.text)
-        
-        except Exception as e:
-            st.error(str(e))
-            st.code(traceback.format_exc())    
+                contents=prompt
+            )
+
+        st.subheader("📊 ATS Analysis")
+        st.markdown(response.text)
+
+    except Exception:
+        st.error("An error occurred while contacting Gemini.")
+        st.code(traceback.format_exc())
