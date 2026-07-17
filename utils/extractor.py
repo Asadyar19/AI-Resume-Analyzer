@@ -1,13 +1,9 @@
-import json
-
 from google.genai import types
-
 from utils.gemini_client import client
 from utils.prompts import extraction_prompt
-
+from utils.json_parser import parse_gemini_json # Adjust import path as needed
 
 def extract_skills(resume_text, job_description):
-
     prompt = extraction_prompt(
         resume_text,
         job_description
@@ -22,31 +18,21 @@ def extract_skills(resume_text, job_description):
         )
     )
 
-    text = response.text.strip()
-
-    # Remove markdown fences if Gemini accidentally adds them
-    if text.startswith("```"):
-
-        text = text.replace("```json", "")
-        text = text.replace("```", "")
-        text = text.strip()
-
-    data = json.loads(text)
+    # Use your centralized parser
+    data = parse_gemini_json(response.text)
+    
+    # Failsafe if the parser returned None
+    if not data:
+        data = {}
 
     return {
         "resume_skills": sorted(
-            list(
-                set(data.get("resume_skills", []))
-            )
+            list(set(data.get("resume_skills", [])))
         ),
         "required_skills": sorted(
-            list(
-                set(data.get("required_skills", []))
-            )
+            list(set(data.get("required_skills", [])))
         ),
         "preferred_skills": sorted(
-            list(
-                set(data.get("preferred_skills", []))
-            )
+            list(set(data.get("preferred_skills", [])))
         )
     }
